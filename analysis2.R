@@ -31,3 +31,8 @@ ggplot(bikedata[is_rushhour,], aes(x = t1, y = cnt, color = hrs_cat)) +
 ggplot(bikedata[!is_rushhour,], aes(x = t1, y = cnt, color = hrs_cat)) +
   geom_point(alpha=0.2) +
   facet_grid(rows = vars(is_holiday_or_weekend), cols = vars(season))
+
+# TODO:
+# Greedy backward search on final model, either manually or using step(data, direction="backward")
+# Split into training/testing, calculate pMSE.
+# Interpretation of coefficients.
