@@ -81,6 +81,14 @@ summary(model4)
 # Comparison of RSS
 c(summary(model1)$r.squared,summary(model2)$r.squared,summary(model3)$r.squared,summary(model4)$r.squared)
 
+# Comparison of residual distribution
+ggplot(bd) +
+  geom_density(aes(x = model1$residuals),color="blue",linewidth=1) +
+  geom_density(aes(x = model4$residuals),color="red",linewidth=1) +
+  labs(x = "Residuals", y = "Density") +
+  scale_fill_discrete(name = "Hej", labels=c("Model 1", "Model 4")) +
+  theme(legend.position = "left")
+
 # TODO:
 # Greedy backward search on final model, either manually or using step(data, direction="backward")
 # Split into training/testing, calculate pMSE.
