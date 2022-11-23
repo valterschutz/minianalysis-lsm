@@ -50,6 +50,7 @@ ggplot(bd[!is_rushhour,], aes(x = t1, y = cnt, color = hrs_cat)) +
 #Modell som EJ tar hänsyn till att (temperatur, säsong) samt (tid, arbetsdag eller ej) korrelerar
 
 model <- lm(bd$cnt ~ bd$hum   +  bd$wind_speed  +  bd$t1+bd$season  +  bd$hrs_cat+bd$workday  +  bd$weather_code)
+summary(model)
 step(model, direction="backward")
 
 model <- lm(bd$cnt ~ bd$hum   +  bd$wind_speed  +  bd$t1  +  bd$hrs_cat+bd$workday  +  bd$weather_code)
