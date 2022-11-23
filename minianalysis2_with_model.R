@@ -19,12 +19,10 @@ levels(bd$hrs_cat)[levels(bd$hrs_cat)%in%c("6", "7", "8", "9")] <- "Morning"
 levels(bd$hrs_cat)[levels(bd$hrs_cat)%in%c("10", "11", "12", "13")] <- "Forenoon"
 levels(bd$hrs_cat)[levels(bd$hrs_cat)%in%c("14", "15", "16", "17")] <- "Afternoon"
 levels(bd$hrs_cat)[levels(bd$hrs_cat)%in%c("18", "19", "20", "21", "22")] <- "Evening"
-levels(bd$weather_code)[levels(bd$weather_code)%in%c("Cloudy", "Clear", "Broken clouds", "Scattered clouds")] <- "No Precipitation"
-levels(bd$weather_code)[levels(bd$weather_code)%in%c("Rain", "Snowfall", "Rain with thunderstorm", "Freezing fog")] <- "Precipitation"
 bd$hrs_cat <- relevel(bd$hrs_cat, ref="Night")
 bd$season <- relevel(bd$season, ref="Winter")
-bd$weather_code <- relevel(bd$weather_code, ref="Clear")
-bd$workday <- relevel(bd$workday, ref="No")
+bd$weather_code <- relevel(bd$weather_code, ref="Precipitation")
+bd$workday <- relevel(bd$workday, ref="Yes")
 
 # Violin plots
 ggplot(data = bd, aes(x = season, y = cnt)) +
@@ -46,12 +44,30 @@ ggplot(bd[!is_rushhour,], aes(x = t1, y = cnt, color = hrs_cat)) +
   facet_grid(rows = vars(workday), cols = vars(season))
 
 #Modell som tar hänsyn till att (temperatur, säsong) samt (tid, arbetsdag eller ej) korrelerar
-model <- lm(bd$cnt ~ bd$hum  +  bd$wind_speed  +  bd$t1*bd$season  +  bd$hrs_cat*bd$workday  +  bd$weather_code)
-summary(model)
+#model1 <- lm(bd$cnt ~ bd$hum  +  bd$wind_speed  +  bd$t1*bd$season  +  bd$hrs_cat*bd$workday  +  bd$weather_code)
+#summary(model1)
+#qqnorm(model1$residuals)
 #Modell som EJ tar hänsyn till att (temperatur, säsong) samt (tid, arbetsdag eller ej) korrelerar
-model <- lm(bd$cnt ~ bd$hum  +  bd$wind_speed  +  bd$t1+bd$season  +  bd$hrs_cat+bd$workday  +  bd$weather_code)
-summary(model)
-#ggplot(bd, aes(x = t1, y = cnt, color = hrs_cat)) +
-#  geom_point(alpha=0.2) +
-#  facet_grid(rows = vars(workday), cols = vars(season))
 
+model <- lm(bd$cnt ~ bd$hum   +  bd$wind_speed  +  bd$t1+bd$season  +  bd$hrs_cat+bd$workday  +  bd$weather_code)
+step(model, direction="backward")
+
+model <- lm(bd$cnt ~ bd$hum   +  bd$wind_speed  +  bd$t1  +  bd$hrs_cat+bd$workday  +  bd$weather_code)
+step(model, direction="backward")
+
+model <- lm(bd$cnt ~ bd$hum  +  bd$t1  +  bd$hrs_cat+bd$workday  +  bd$weather_code)
+step(model, direction="backward")
+
+model <- lm(bd$cnt ~ bd$hum + bd$t1  +  bd$hrs_cat+bd$workday)
+step(model, direction="backward")
+
+model <- lm(bd$cnt ~ bd$hum + bd$t1  +  bd$hrs_cat*bd$workday)
+step(model, direction="backward")
+
+summary(model)
+qqnorm(model$residuals)
+
+#modelw <- lm(bd$cnt ~  bd$t1  + bd$hum  bd$hrs_cat+bd$workday)
+#step(modelw, direction="backward")
+#summary(modelw)
+#qqnorm(modelw$residuals)
