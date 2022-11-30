@@ -2,6 +2,7 @@
 # Use leaps and regsubsets to calculate all possible models, calculate pMSE for each one.
 # Plot y_test against y_pred against y_test for a good model and a bad model.
 #   Add a line with slope 1.
+# k-fold cross validation
 
 library(leaps)
 library(chron)
@@ -58,6 +59,8 @@ bd$workday <- relevel(bd$workday, ref="Workday")
 # Simplify stuff
 bd$mod_weather_code <- bd$weather_code
 levels(bd$mod_weather_code)[levels(bd$mod_weather_code)%in%c("Cloudy", "Clear", "Broken clouds", "Scattered clouds")] <- "No precipitation"
+levels(bd$mod_weather_code)[levels(bd$mod_weather_code)%in%c("Cloudy", "Clear", "Broken clouds", "Scattered clouds")] <- "No precipitation"
+levels(bd$weather_code)[levels(bd$weather_code)%in%c("Rain", "Snowfall", "Rain with thunderstorm", "Freezing fog")] <- "Precipitation"
 
 # Split data into training and testing
 y = bd$cnt
@@ -65,29 +68,30 @@ N = length(y)
 testratio = 0.5
 Ntest = floor(N*testratio)
 allindices = seq(1,N)
-testindices = sort(sample(allindices, Ntest))
+testindices = Ntest:N #sort(sample(allindices, Ntest))fsdfsdf
 trainindices = allindices[!allindices %in% testindices]
 bdtrain = bd[trainindices,]
 bdtest = bd[testindices,]
 ytest = y[testindices]
 
 # Training "bad" model
-trainmodel1 <- lm(cnt ~ hum + wind_speed + t1 + season + hrs_cat + workday + weather_code, data=bdtrain)
+#trainmodel1 <- lm(cnt ~ hum + wind_speed + t1 + season + hrs_cat + workday + weather_code, data=bdtrain)
 # Prediction for "bad" model
-testmodel1 <- lm(cnt ~ hum + wind_speed + t1 + season + hrs_cat + workday + weather_code, data=bdtest, x=TRUE)
-stats1 = pmse(trainmodel1, testmodel1, ytest)
+#testmodel1 <- lm(cnt ~ hum + wind_speed + t1 + season + hrs_cat + workday + weather_code, data=bdtest, x=TRUE)
+#stats1 = pmse(trainmodel1, testmodel1, ytest)
 
 # Training "good" model
-trainmodel2 <- lm(cnt ~ hum + t1 + time*workday + mod_weather_code, data=bdtrain)
+#trainmodel2 <- lm(cnt ~ hum + t1 + time*workday + mod_weather_code, data=bdtrain)
 # Prediction for "good" model
-testmodel2 <- lm(cnt ~ hum + t1 + time*workday + mod_weather_code, data=bdtest, x=TRUE)
-stats2 = pmse(trainmodel2, testmodel2, ytest)
+#testmodel2 <- lm(cnt ~ hum + t1 + time*workday + mod_weather_code, data=bdtest, x=TRUE)
+#stats2 = pmse(trainmodel2, testmodel2, ytest)
 
 # Log transformation
-trainmodel3 <- lm(log(cnt) ~ hum + t1 + time*workday + mod_weather_code, data=bdtrain)
+trainmodel3 <- lm(log(cnt) ~ hum + t1 + time*workday+mod_weather_code, data=bdtrain)
 # Prediction for "good" model
-testmodel3 <- lm(log(cnt) ~ hum + t1 + time*workday + mod_weather_code, data=bdtest, x=TRUE)
+testmodel3 <- lm(log(cnt) ~ hum + t1 + time*workday+mod_weather_code, data=bdtest, x=TRUE)
 stats3 = pmse(trainmodel3, testmodel3, log(ytest))
+stats3
 
 ## Boxcox stuff
 #b = boxcox(model2)
