@@ -68,17 +68,42 @@ N = length(y)
 testratio = 0.5
 Ntest = floor(N*testratio)
 allindices = seq(1,N)
-testindices = Ntest:N #sort(sample(allindices, Ntest))fsdfsdf
+testindices = sort(sample(allindices, Ntest))
 trainindices = allindices[!allindices %in% testindices]
 bdtrain = bd[trainindices,]
 bdtest = bd[testindices,]
-ytest = y[testindices]
+y_test = y[testindices]
+y_train = y[trainindices]
+
+# Exhaustive search to find best model, excluding  interactions
+# First create huge model
+big_model <- lm(cnt ~ t1 + hum + wind_speed + time + workday, data=bd, x=TRUE)
+X <- big_model$x
+X_train <- X[trainindices,-c(1)]
+X_test <- X[testindices, -c(1)]
+m<-regsubsets(X_train,y_train,int=T,nbest=1000,nvmax=dim(X)[2],method = c("ex"),really.big = T,force.in = seq(4,dim(X_train)[2]))
+cleaps<-summary(m,matrix=T)
+cleaps$which
+
+pmses<-rep(0,dim(cleaps$which)[1])
+for (jj in (1:dim(cleaps$which)[1])) {
+  mmr<-lm(y_train~X_train[,cleaps$which[jj,-1]==T])
+  design <- X_test[,cleaps$which[jj,-1]==T]
+  design <- cbind(rep(1,dim(X_test)[1]),design)
+  PEcp<-sum((y_test-design%*%mmr$coef)^2)/length(y_test)
+  pmses[jj]<-PEcp
+}
+n_params = c(1,1,1,2,2,2,3)
+plot(n_params,sqrt(pmses))
+plot(sqrt(pmses))
 
 # Training "bad" model
-#trainmodel1 <- lm(cnt ~ hum + wind_speed + t1 + season + hrs_cat + workday + weather_code, data=bdtrain)
-# Prediction for "bad" model
-#testmodel1 <- lm(cnt ~ hum + wind_speed + t1 + season + hrs_cat + workday + weather_code, data=bdtest, x=TRUE)
-#stats1 = pmse(trainmodel1, testmodel1, ytest)
+trainmodel1 <- lm(cnt ~ wind_speed + time + workday, data=bdtrain)
+testmodel1 <- lm(cnt ~ wind_speed + time + workday, data=bdtest, x=TRUE)
+stats1 = pmse(trainmodel1, testmodel1, y_test)
+trainmodel1 <- lm(cnt ~ t1 + time + workday, data=bdtrain)
+testmodel1 <- lm(cnt ~ t1 + time + workday, data=bdtest, x=TRUE)
+stats1 = pmse(trainmodel1, testmodel1, y_test)
 
 # Training "good" model
 #trainmodel2 <- lm(cnt ~ hum + t1 + time*workday + mod_weather_code, data=bdtrain)
