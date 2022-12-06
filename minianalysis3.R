@@ -23,17 +23,20 @@ pmse = function(trainmodel, testmodel, ytest) {
   print(ggplot() +
     geom_point(aes(x=ypred, y=ytest), alpha=0.1, color="blue") +
     geom_abline(aes(intercept=0, slope=1), color="red"))
-  print("Hey")
   
   c(pmse, R2train, R2test)
 }
 
-bd = read.csv("bikesharing.csv")
-bd = bd[bd$cnt[bd$cnt > 0],]
+bd <- read.csv("bikesharing.csv")
+bd <- bd[bd$cnt>0,]
 bd$cnt <- bd$cnt+5
-bd$timestamp <- as.chron(bd$timestamp)
-bd$hrs <- hours(bd$timestamp)
+bd$chrons <- as.chron(bd$timestamp)
+bd$hrs <- hours(bd$chrons)
+bd$weekday <- weekdays(bd$chrons)
+bd$months <- months(bd$chrons)
+
 bd$hrs_cat <- factor(bd$hrs)
+bd$weekday_cat <- factor(bd$weekday)
 bd$time_of_day = bd$hrs_cat
 levels(bd$time_of_day)[levels(bd$time_of_day)%in%c("23", "0", "1", "2", "3", "4", "5","6")] <- "Night"
 levels(bd$time_of_day)[levels(bd$time_of_day)%in%c("7", "8", "9")] <- "Morning"
@@ -56,6 +59,9 @@ bd$season <- relevel(bd$season, ref="Winter")
 bd$weather_code <- relevel(bd$weather_code, ref="Clear")
 bd$workday <- relevel(bd$workday, ref="Workday")
 
+# Only keep some data
+bd <- bd[bd$months %in% c("Feb","Mar","Apr"),]
+
 # Simplify stuff
 bd$mod_weather_code <- bd$weather_code
 levels(bd$mod_weather_code)[levels(bd$mod_weather_code)%in%c("Cloudy", "Clear", "Broken clouds", "Scattered clouds")] <- "No precipitation"
@@ -75,66 +81,29 @@ bdtest = bd[testindices,]
 y_test = y[testindices]
 y_train = y[trainindices]
 
-# Exhaustive search to find best model, excluding  interactions
-# First create huge model
-big_model <- lm(cnt ~ t1 + hum + wind_speed + time + workday, data=bd, x=TRUE)
-X <- big_model$x
-X_train <- X[trainindices,-c(1)]
-X_test <- X[testindices, -c(1)]
-m<-regsubsets(X_train,y_train,int=T,nbest=1000,nvmax=dim(X)[2],method = c("ex"),really.big = T,force.in = seq(4,dim(X_train)[2]))
-cleaps<-summary(m,matrix=T)
-cleaps$which
-
-pmses<-rep(0,dim(cleaps$which)[1])
-for (jj in (1:dim(cleaps$which)[1])) {
-  mmr<-lm(y_train~X_train[,cleaps$which[jj,-1]==T])
-  design <- X_test[,cleaps$which[jj,-1]==T]
-  design <- cbind(rep(1,dim(X_test)[1]),design)
-  PEcp<-sum((y_test-design%*%mmr$coef)^2)/length(y_test)
-  pmses[jj]<-PEcp
-}
-n_params = c(1,1,1,2,2,2,3)
-plot(n_params,sqrt(pmses))
-plot(sqrt(pmses))
-
 # Training "bad" model
-trainmodel1 <- lm(cnt ~ wind_speed + time + workday, data=bdtrain)
-testmodel1 <- lm(cnt ~ wind_speed + time + workday, data=bdtest, x=TRUE)
+trainmodel1 <- lm(cnt ~ t1 + hum + wind_speed + time + workday + weather_code, data=bdtrain)
+testmodel1 <- lm(cnt ~ t1 + hum + wind_speed + time + workday + weather_code, data=bdtest, x=TRUE)
 stats1 = pmse(trainmodel1, testmodel1, y_test)
-trainmodel1 <- lm(cnt ~ t1 + time + workday, data=bdtrain)
-testmodel1 <- lm(cnt ~ t1 + time + workday, data=bdtest, x=TRUE)
-stats1 = pmse(trainmodel1, testmodel1, y_test)
+aic1 = AIC(trainmodel1)
+bic1 = BIC(trainmodel1)
 
 # Training "good" model
-#trainmodel2 <- lm(cnt ~ hum + t1 + time*workday + mod_weather_code, data=bdtrain)
 # Prediction for "good" model
-#testmodel2 <- lm(cnt ~ hum + t1 + time*workday + mod_weather_code, data=bdtest, x=TRUE)
-#stats2 = pmse(trainmodel2, testmodel2, ytest)
-
-# Log transformation
-trainmodel3 <- lm(log(cnt) ~ hum + t1 + time*workday+mod_weather_code, data=bdtrain)
+trainmodel2 <- lm(cnt ~ hum + t1 + time*workday, data=bdtrain)
 # Prediction for "good" model
-testmodel3 <- lm(log(cnt) ~ hum + t1 + time*workday+mod_weather_code, data=bdtest, x=TRUE)
-stats3 = pmse(trainmodel3, testmodel3, log(ytest))
-stats3
+testmodel2 <- lm(cnt ~ hum + t1 + time*workday, data=bdtest, x=TRUE)
+stats2 = pmse(trainmodel2, testmodel2, y_test)
+bic2 = BIC(trainmodel2)
+aic2 = AIC(trainmodel2)
 
-## Boxcox stuff
-#b = boxcox(model2)
-#lambda = b$x[which.max(b$y)]
-#bd$cnt_boxcox = (bd$cnt^lambda - 1)/lambda
-#
-## Split stuff again
-#bdtrain = bd[trainindices,]
-#bdtest = bd[testindices,]
-#y = bd$cnt_boxcox
-#ytest = y[testindices]
-#
-## Model with boxcox
-#trainmodel3 <- lm(cnt_boxcox ~ hum + t1 + time*workday + mod_weather_code, data=bdtrain)
-#testmodel3 <- lm(cnt_boxcox ~ hum + t1 + time*workday + mod_weather_code, data=bdtest)
-#stats3 = pmse(trainmodel3, testmodel3, ytest)
+# Overfitted model
+trainmodel3 <- lm(cnt ~ hum * t1 * time*weekday_cat+ mod_weather_code, data=bdtrain)
+testmodel3 <- lm(cnt ~ hum*t1*time*weekday_cat + mod_weather_code, data=bdtest, x=TRUE)
+stats3 = pmse(trainmodel3, testmodel3, y_test)
+aic3 = AIC(trainmodel3)
+bic3 = BIC(trainmodel3)
 
 ggplot() +
-  stat_qq(aes(sample = trainmodel3$residuals), alpha=0.2) +
-  stat_qq_line(color="red", linewidth=5)
-
+  geom_qq(aes(sample = trainmodel2$residuals), alpha=0.2) +
+  geom_abline(aes(intercept = 0, slope = 200))
