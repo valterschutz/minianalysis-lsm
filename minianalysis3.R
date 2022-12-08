@@ -1,12 +1,10 @@
 # TODO:
 # Use leaps and regsubsets to calculate all possible models, calculate pMSE for each one.
-# Plot y_test against y_pred against y_test for a good model and a bad model.
-#   Add a line with slope 1.
 # k-fold cross validation
 
 library(leaps)
 library(chron)
-library(ggplot2)
+library(tidyverse)
 library(GGally)
 library(MASS)
 
@@ -27,8 +25,8 @@ pmse = function(trainmodel, testmodel, ytest) {
   c(pmse, R2train, R2test)
 }
 
-bd <- read.csv("bikesharing.csv")
-bd <- bd[bd$cnt>0,]
+bd <- tibble(read.csv("bikesharing.csv"))
+bd <- filter(bd, cnt > 0)
 bd$cnt <- bd$cnt+5
 bd$chrons <- as.chron(bd$timestamp)
 bd$hrs <- hours(bd$chrons)
@@ -60,7 +58,7 @@ bd$weather_code <- relevel(bd$weather_code, ref="Clear")
 bd$workday <- relevel(bd$workday, ref="Workday")
 
 # Only keep some data
-bd <- bd[bd$months %in% c("Feb","Mar","Apr"),]
+bd <- filter(bd, months %in% c("Feb","Mar","Apr"))
 
 # Simplify stuff
 bd$mod_weather_code <- bd$weather_code
@@ -81,25 +79,20 @@ bdtest = bd[testindices,]
 y_test = y[testindices]
 y_train = y[trainindices]
 
-# Training "bad" model
 trainmodel1 <- lm(cnt ~ t1 + hum + wind_speed + time + workday + weather_code, data=bdtrain)
 testmodel1 <- lm(cnt ~ t1 + hum + wind_speed + time + workday + weather_code, data=bdtest, x=TRUE)
 stats1 = pmse(trainmodel1, testmodel1, y_test)
 aic1 = AIC(trainmodel1)
 bic1 = BIC(trainmodel1)
 
-# Training "good" model
-# Prediction for "good" model
 trainmodel2 <- lm(cnt ~ hum + t1 + time*workday, data=bdtrain)
-# Prediction for "good" model
 testmodel2 <- lm(cnt ~ hum + t1 + time*workday, data=bdtest, x=TRUE)
 stats2 = pmse(trainmodel2, testmodel2, y_test)
 bic2 = BIC(trainmodel2)
 aic2 = AIC(trainmodel2)
 
-# Overfitted model
-trainmodel3 <- lm(cnt ~ hum * t1 * time*weekday_cat+ mod_weather_code, data=bdtrain)
-testmodel3 <- lm(cnt ~ hum*t1*time*weekday_cat + mod_weather_code, data=bdtest, x=TRUE)
+trainmodel3 <- lm(cnt ~ hum * t1 * time * weekday_cat + mod_weather_code, data=bdtrain)
+testmodel3 <- lm(cnt ~ hum * t1 * time * weekday_cat + mod_weather_code, data=bdtest, x=TRUE)
 stats3 = pmse(trainmodel3, testmodel3, y_test)
 aic3 = AIC(trainmodel3)
 bic3 = BIC(trainmodel3)
@@ -107,3 +100,9 @@ bic3 = BIC(trainmodel3)
 ggplot() +
   geom_qq(aes(sample = trainmodel2$residuals), alpha=0.2) +
   geom_abline(aes(intercept = 0, slope = 200))
+
+ggplot() +
+  geom_point(aes(x = seq(1,length(testmodel3$residuals)), y = testmodel3$residuals), alpha=0.4) +
+  xlab("Index") +
+  ylab("Residuals") +
+  ylim(-3000,3000)
